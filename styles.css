@@ -857,6 +857,20 @@
   }
 }
 
+/* Dragging cursor */
+.pure-notepad-titlebar {
+  cursor: move;
+}
+
+.pure-notepad-container.dragging {
+  cursor: grabbing;
+}
+
+.pure-notepad-container.dragging * {
+  cursor: grabbing !important;
+  pointer-events: none;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
