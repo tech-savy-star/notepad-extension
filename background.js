@@ -70,6 +70,9 @@ chrome.action.onClicked.addListener(async (tab) => {
         console.log('Content script not ready, injecting CSS and retrying...');
         
         // Inject CSS if not already injected
+      }
+    }
+    )
     // Check if this is a restricted page
     if (tab.url && (
       tab.url.startsWith('chrome://') || 
