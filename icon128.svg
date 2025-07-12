@@ -1,0 +1,51 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="notepadGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5A9FE8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3A7BD5;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- Main notepad body -->
+  <rect x="16" y="8" width="96" height="112" rx="8" fill="url(#notepadGradient)" stroke="#2E5B8A" stroke-width="2" filter="url(#shadow)"/>
+  
+  <!-- Header line -->
+  <rect x="20" y="14" width="88" height="2" rx="1" fill="#2E5B8A" opacity="0.3"/>
+  
+  <!-- Text lines -->
+  <rect x="24" y="24" width="80" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="32" width="64" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="40" width="72" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="48" width="56" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="56" width="68" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="64" width="48" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="72" width="60" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="80" width="40" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="88" width="52" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="96" width="36" height="4" rx="2" fill="#E8F4FD"/>
+  <rect x="24" y="104" width="44" height="4" rx="2" fill="#E8F4FD"/>
+  
+  <!-- Spiral binding holes -->
+  <circle cx="12" cy="20" r="6" fill="#FF6B6B"/>
+  <circle cx="12" cy="36" r="6" fill="#4ECDC4"/>
+  <circle cx="12" cy="52" r="6" fill="#FFE66D"/>
+  <circle cx="12" cy="68" r="6" fill="#95E1D3"/>
+  <circle cx="12" cy="84" r="6" fill="#F8B500"/>
+  <circle cx="12" cy="100" r="6" fill="#FF9F43"/>
+  
+  <!-- Spiral binding rings -->
+  <circle cx="12" cy="20" r="4" fill="none" stroke="#C0392B" stroke-width="1"/>
+  <circle cx="12" cy="36" r="4" fill="none" stroke="#16A085" stroke-width="1"/>
+  <circle cx="12" cy="52" r="4" fill="none" stroke="#F39C12" stroke-width="1"/>
+  <circle cx="12" cy="68" r="4" fill="none" stroke="#52C4A2" stroke-width="1"/>
+  <circle cx="12" cy="84" r="4" fill="none" stroke="#E67E22" stroke-width="1"/>
+  <circle cx="12" cy="100" r="4" fill="none" stroke="#E74C3C" stroke-width="1"/>
+  
+  <!-- Pen/pencil icon -->
+  <path d="M100 100 L108 92 L112 96 L104 104 Z" fill="#8E44AD"/>
+  <path d="M108 92 L116 84 L120 88 L112 96 Z" fill="#9B59B6"/>
+  <circle cx="118" cy="86" r="2" fill="#F1C40F"/>
+</svg>

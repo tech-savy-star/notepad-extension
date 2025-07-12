@@ -1,0 +1,30 @@
+# Chrome Extension
+*.crx
+*.pem
+.DS_Store
+Thumbs.db
+
+# Development
+node_modules/
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Temporary folders
+tmp/
+temp/
