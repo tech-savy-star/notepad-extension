@@ -1,6 +1,6 @@
-// Service worker for handling keyboard shortcuts and storage
-// Initialize storage on install
+// Service worker for handling extension icon clicks and storage
 chrome.runtime.onInstalled.addListener(() => {
+  // Initialize storage on install
   chrome.storage.local.set({
     notes: [{
       id: 'welcome-note',
@@ -40,19 +40,127 @@ Happy writing! ✍️`,
       theme: 'auto',
       fontSize: 14,
       fontFamily: 'SF Pro Display',
-      opacity: 0.95,
+      opacity: 95,
       position: { x: 100, y: 100 },
       size: { width: 450, height: 600 },
       autoSave: true,
-      wordWrap: true
+      wordWrap: true,
+      colorTheme: 0
     }
   });
 });
 
 // Handle extension icon click
-chrome.action.onClicked.addListener(() => {
-  // Show notepad on current page
-  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-    chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleNotepad'});
-  });
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    // First, ensure content script is injected
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content.js']
+    });
+    
+    // Small delay to ensure content script is ready
+    setTimeout(async () => {
+      try {
+        // Send message to toggle notepad
+        await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+      } catch (error) {
+        console.log('Content script not ready, injecting CSS and retrying...');
+        
+        // Inject CSS if not already injected
+        try {
+          await chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ['styles.css']
+          });
+        } catch (cssError) {
+          console.log('CSS already injected or error:', cssError);
+        }
+        
+        // Retry sending message
+        setTimeout(async () => {
+          try {
+            await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+          } catch (retryError) {
+            console.error('Failed to communicate with content script:', retryError);
+            // Fallback: inject everything fresh
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            });
+            
+            setTimeout(async () => {
+              await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+            }, 500);
+          }
+        }, 300);
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error injecting content script:', error);
+    
+    // Fallback: try to inject on all frames
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        files: ['content.js']
+      });
+      
+      await chrome.scripting.insertCSS({
+        target: { tabId: tab.id, allFrames: true },
+        files: ['styles.css']
+      });
+      
+      setTimeout(async () => {
+        await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+      }, 200);
+      
+    } catch (fallbackError) {
+      console.error('Fallback injection failed:', fallbackError);
+    }
+  }
+});
+
+// Handle keyboard shortcuts
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'toggle-notepad') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+      } catch (error) {
+        // Content script not ready, inject it
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        
+        setTimeout(async () => {
+          await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+        }, 100);
+      }
+    }
+  }
+});
+
+// Listen for tab updates to ensure content script is available
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
+    try {
+      // Pre-inject content script when page loads
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+      
+      await chrome.scripting.insertCSS({
+        target: { tabId: tabId },
+        files: ['styles.css']
+      });
+    } catch (error) {
+      // Ignore errors for pages where we can't inject (like chrome:// pages)
+      console.log('Could not inject into tab:', tab.url);
+    }
+  }
 });

@@ -5,15 +5,8 @@
   "description": "A beautiful, offline-only notepad with macOS-inspired design",
   "permissions": [
     "storage",
-    "activeTab"
-  ],
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
-      "run_at": "document_end"
-    }
+    "activeTab",
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js"
@@ -23,11 +16,24 @@
       "16": "icon16.svg",
       "48": "icon48.svg",
       "128": "icon128.svg"
+    },
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "toggle-notepad": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+N",
+        "mac": "Command+Shift+N"
+      },
+      "description": "Toggle Pure Notepad"
     }
   },
   "icons": {
     "16": "icon16.svg",
     "48": "icon48.svg",
     "128": "icon128.svg"
-  }
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
 }

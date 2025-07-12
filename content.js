@@ -2,9 +2,12 @@ class PureNotepad {
   constructor() {
     // Prevent multiple instances
     if (window.pureNotepadInstance) {
+      console.log('Pure Notepad already exists, returning existing instance');
       return window.pureNotepadInstance;
     }
     window.pureNotepadInstance = this;
+    
+    console.log('Initializing Pure Notepad...');
     
     this.isVisible = false;
     this.isDragging = false;
@@ -31,11 +34,17 @@ class PureNotepad {
   }
 
   async init() {
+    console.log('Loading Pure Notepad data...');
     await this.loadData();
+    console.log('Creating Pure Notepad interface...');
     this.createNotepad();
+    console.log('Setting up event listeners...');
     this.setupEventListeners();
+    console.log('Applying theme...');
     this.applyTheme();
+    console.log('Updating notes list...');
     this.updateNotesList();
+    console.log('Pure Notepad initialized successfully!');
   }
 
   async loadData() {
