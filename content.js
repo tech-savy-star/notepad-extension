@@ -379,7 +379,7 @@ class PureNotepad {
       if (request.action === 'toggleNotepad') {
         console.log('Toggling notepad...');
         this.toggle();
-        sendResponse({success: true, action: 'toggleNotepad'});
+        sendResponse({success: true, action: 'toggleNotepad', visible: this.isVisible});
       } else if (request.action === 'showPopup') {
         console.log('Showing popup...');
         this.showExtensionPopup();
@@ -1072,15 +1072,22 @@ class PureNotepad {
 // Initialize when DOM is ready
 console.log('Pure Notepad content script loaded');
 
-// Initialize immediately if DOM is already ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM ready, initializing Pure Notepad...');
-    new PureNotepad();
-  });
+// Prevent multiple instances
+if (window.pureNotepadInitialized) {
+  console.log('Pure Notepad already initialized');
 } else {
-  console.log('DOM already ready, initializing Pure Notepad immediately...');
-  new PureNotepad();
+  window.pureNotepadInitialized = true;
+  
+  // Initialize immediately if DOM is already ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM ready, initializing Pure Notepad...');
+      new PureNotepad();
+    });
+  } else {
+    console.log('DOM already ready, initializing Pure Notepad immediately...');
+    new PureNotepad();
+  }
 }
 
 // Also listen for messages immediately in case the extension is clicked before DOM is ready

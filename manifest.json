@@ -16,8 +16,7 @@
       "16": "icon16.svg",
       "48": "icon48.svg",
       "128": "icon128.svg"
-    },
-    "default_popup": "popup.html"
+    }
   },
   "commands": {
     "toggle-notepad": {

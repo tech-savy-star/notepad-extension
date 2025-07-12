@@ -52,6 +52,8 @@ Happy writing! ✍️`,
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
+  console.log('Extension icon clicked on tab:', tab.url);
+  
   try {
     // First, ensure content script is injected
     await chrome.scripting.executeScript({
@@ -68,57 +70,68 @@ chrome.action.onClicked.addListener(async (tab) => {
         console.log('Content script not ready, injecting CSS and retrying...');
         
         // Inject CSS if not already injected
-        try {
-          await chrome.scripting.insertCSS({
-            target: { tabId: tab.id },
-            files: ['styles.css']
-          });
-        } catch (cssError) {
-          console.log('CSS already injected or error:', cssError);
-        }
-        
-        // Retry sending message
-        setTimeout(async () => {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-          } catch (retryError) {
-            console.error('Failed to communicate with content script:', retryError);
-            // Fallback: inject everything fresh
-            await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              files: ['content.js']
-            });
-            
-            setTimeout(async () => {
-              await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-            }, 500);
-          }
-        }, 300);
-      }
-    }, 100);
+    // Check if this is a restricted page
+    if (tab.url && (
+      tab.url.startsWith('chrome://') || 
+      tab.url.startsWith('chrome-extension://') || 
+      tab.url.startsWith('edge://') || 
+      tab.url.startsWith('about:') ||
+      tab.url.startsWith('moz-extension://')
+    )) {
+      console.log('Cannot inject on restricted page:', tab.url);
+      // Show notification or alert
+      chrome.notifications?.create({
+        type: 'basic',
+        iconUrl: 'icon48.svg',
+        title: 'Pure Notepad',
+        message: 'Cannot open notepad on this page. Please try on a regular webpage.'
+      });
+      return;
+    }
+
+    console.log('Injecting content script...');
     
-  } catch (error) {
-    console.error('Error injecting content script:', error);
-    
-    // Fallback: try to inject on all frames
+    // Inject content script and CSS
     try {
       await chrome.scripting.executeScript({
-        target: { tabId: tab.id, allFrames: true },
+        target: { tabId: tab.id },
         files: ['content.js']
       });
       
       await chrome.scripting.insertCSS({
-        target: { tabId: tab.id, allFrames: true },
+        target: { tabId: tab.id },
         files: ['styles.css']
       });
       
-      setTimeout(async () => {
-        await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-      }, 200);
+      console.log('Scripts injected successfully');
       
-    } catch (fallbackError) {
-      console.error('Fallback injection failed:', fallbackError);
+      // Wait a bit for initialization
+      setTimeout(async () => {
+        try {
+          console.log('Sending toggle message...');
+          const response = await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+          console.log('Message sent successfully:', response);
+        } catch (messageError) {
+          console.error('Error sending message:', messageError);
+          
+          // Try one more time after a longer delay
+          setTimeout(async () => {
+            try {
+              await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+              console.log('Retry message sent successfully');
+            } catch (retryError) {
+              console.error('Retry failed:', retryError);
+            }
+          }, 500);
+        }
+      }, 300);
+      
+    } catch (injectionError) {
+      console.error('Script injection failed:', injectionError);
     }
+    
+  } catch (error) {
+    console.error('Extension click handler error:', error);
   }
 });
 
