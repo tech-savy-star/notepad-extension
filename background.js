@@ -54,87 +54,88 @@ Happy writing! ✍️`,
 chrome.action.onClicked.addListener(async (tab) => {
   console.log('Extension icon clicked on tab:', tab.url);
   
+  // Check if this is a restricted page FIRST
+  if (tab.url && (
+    tab.url.startsWith('chrome://') || 
+    tab.url.startsWith('chrome-extension://') || 
+    tab.url.startsWith('edge://') || 
+    tab.url.startsWith('about:') ||
+    tab.url.startsWith('moz-extension://') ||
+    tab.url.startsWith('chrome-search://') ||
+    tab.url.startsWith('devtools://') ||
+    !tab.url.startsWith('http')
+  )) {
+    console.log('Cannot inject on restricted page:', tab.url);
+    
+    // Show notification for restricted pages
+    try {
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon48.svg',
+        title: 'Pure Notepad',
+        message: 'Cannot open notepad on this page. Please navigate to a regular website (like google.com) and try again.'
+      });
+    } catch (notificationError) {
+      console.log('Notification not available, showing alert');
+      // Fallback: open a new tab with instructions
+      chrome.tabs.create({
+        url: 'data:text/html,<html><head><title>Pure Notepad</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:50px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;}</style></head><body><h1>🚫 Cannot Open Notepad Here</h1><p>Chrome extensions cannot run on system pages for security reasons.</p><p><strong>To use Pure Notepad:</strong></p><ol style="text-align:left;max-width:400px;margin:20px auto;"><li>Navigate to any regular website (like google.com)</li><li>Click the Pure Notepad extension icon</li><li>Start writing!</li></ol><p><em>This tab will close automatically in 5 seconds...</em></p><script>setTimeout(()=>window.close(),5000);</script></body></html>'
+      });
+    }
+    return;
+  }
+
   try {
-    // First, ensure content script is injected
+    console.log('Injecting content script and CSS...');
+    
+    // Inject content script and CSS
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ['content.js']
     });
     
-    // Small delay to ensure content script is ready
+    await chrome.scripting.insertCSS({
+      target: { tabId: tab.id },
+      files: ['styles.css']
+    });
+    
+    console.log('Scripts injected successfully');
+    
+    // Wait for initialization then send toggle message
     setTimeout(async () => {
       try {
-        // Send message to toggle notepad
-        await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-      } catch (error) {
-        console.log('Content script not ready, injecting CSS and retrying...');
+        console.log('Sending toggle message...');
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+        console.log('Message sent successfully:', response);
+      } catch (messageError) {
+        console.error('Error sending message:', messageError);
         
-        // Inject CSS if not already injected
+        // Retry after longer delay
+        setTimeout(async () => {
+          try {
+            await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+            console.log('Retry message sent successfully');
+          } catch (retryError) {
+            console.error('Final retry failed:', retryError);
+          }
+        }, 1000);
       }
-    }
-    )
-    // Check if this is a restricted page
-    if (tab.url && (
-      tab.url.startsWith('chrome://') || 
-      tab.url.startsWith('chrome-extension://') || 
-      tab.url.startsWith('edge://') || 
-      tab.url.startsWith('about:') ||
-      tab.url.startsWith('moz-extension://')
-    )) {
-      console.log('Cannot inject on restricted page:', tab.url);
-      // Show notification or alert
-      chrome.notifications?.create({
-        type: 'basic',
-        iconUrl: 'icon48.svg',
-        title: 'Pure Notepad',
-        message: 'Cannot open notepad on this page. Please try on a regular webpage.'
-      });
-      return;
-    }
-
-    console.log('Injecting content script...');
-    
-    // Inject content script and CSS
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-      
-      await chrome.scripting.insertCSS({
-        target: { tabId: tab.id },
-        files: ['styles.css']
-      });
-      
-      console.log('Scripts injected successfully');
-      
-      // Wait a bit for initialization
-      setTimeout(async () => {
-        try {
-          console.log('Sending toggle message...');
-          const response = await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-          console.log('Message sent successfully:', response);
-        } catch (messageError) {
-          console.error('Error sending message:', messageError);
-          
-          // Try one more time after a longer delay
-          setTimeout(async () => {
-            try {
-              await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-              console.log('Retry message sent successfully');
-            } catch (retryError) {
-              console.error('Retry failed:', retryError);
-            }
-          }, 500);
-        }
-      }, 300);
-      
-    } catch (injectionError) {
-      console.error('Script injection failed:', injectionError);
-    }
+    }, 500);
     
   } catch (error) {
-    console.error('Extension click handler error:', error);
+    console.error('Extension injection error:', error);
+    
+    // Show user-friendly error message
+    try {
+      await chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icon48.svg',
+        title: 'Pure Notepad Error',
+        message: 'Could not open notepad. Please refresh the page and try again.'
+      });
+    } catch (notificationError) {
+      console.log('Could not show notification');
+    }
   }
 });
 
@@ -143,28 +144,52 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'toggle-notepad') {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
+      // Check for restricted pages
+      if (tab.url && (
+        tab.url.startsWith('chrome://') || 
+        tab.url.startsWith('chrome-extension://') || 
+        tab.url.startsWith('edge://') || 
+        tab.url.startsWith('about:') ||
+        !tab.url.startsWith('http')
+      )) {
+        console.log('Cannot use keyboard shortcut on restricted page:', tab.url);
+        return;
+      }
+      
       try {
         await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
       } catch (error) {
         // Content script not ready, inject it
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content.js']
-        });
-        
-        setTimeout(async () => {
-          await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
-        }, 100);
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          
+          await chrome.scripting.insertCSS({
+            target: { tabId: tab.id },
+            files: ['styles.css']
+          });
+          
+          setTimeout(async () => {
+            await chrome.tabs.sendMessage(tab.id, { action: 'toggleNotepad' });
+          }, 500);
+        } catch (injectionError) {
+          console.error('Could not inject content script:', injectionError);
+        }
       }
     }
   }
 });
 
-// Listen for tab updates to ensure content script is available
+// Listen for tab updates to pre-inject content script on regular pages
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
+  if (changeInfo.status === 'complete' && 
+      tab.url && 
+      tab.url.startsWith('http') && 
+      !tab.url.startsWith('chrome://')) {
     try {
-      // Pre-inject content script when page loads
+      // Pre-inject content script when regular pages load
       await chrome.scripting.executeScript({
         target: { tabId: tabId },
         files: ['content.js']
@@ -174,9 +199,30 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         target: { tabId: tabId },
         files: ['styles.css']
       });
+      
+      console.log('Pre-injected content script for:', tab.url);
     } catch (error) {
-      // Ignore errors for pages where we can't inject (like chrome:// pages)
-      console.log('Could not inject into tab:', tab.url);
+      // Silently ignore injection errors (some pages may still block it)
+      console.log('Could not pre-inject into:', tab.url);
     }
+  }
+});
+
+// Handle storage changes to sync across tabs
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local') {
+    // Broadcast storage changes to all tabs
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        if (tab.url && tab.url.startsWith('http')) {
+          chrome.tabs.sendMessage(tab.id, {
+            action: 'storageChanged',
+            changes: changes
+          }).catch(() => {
+            // Ignore errors for tabs without content script
+          });
+        }
+      });
+    });
   }
 });
