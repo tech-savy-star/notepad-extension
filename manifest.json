@@ -4,7 +4,16 @@
   "version": "1.0.0",
   "description": "A beautiful, offline-only notepad with macOS-inspired design",
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
   ],
   "background": {
     "service_worker": "background.js"

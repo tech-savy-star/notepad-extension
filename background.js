@@ -51,8 +51,8 @@ Happy writing! ✍️`,
 
 // Handle extension icon click
 chrome.action.onClicked.addListener(() => {
-  // Open notepad in new tab
-  chrome.tabs.create({
-    url: chrome.runtime.getURL('notepad.html')
+  // Show notepad on current page
+  chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, {action: 'toggleNotepad'});
   });
 });

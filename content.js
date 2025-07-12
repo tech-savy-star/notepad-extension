@@ -18,6 +18,14 @@ class PureNotepad {
     this.originalSize = {};
     this.saveTimeout = null;
     this.popupVisible = false;
+    this.colorOptions = [
+      { name: 'Blue', value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+      { name: 'Purple', value: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
+      { name: 'Green', value: 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)' },
+      { name: 'Orange', value: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)' },
+      { name: 'Pink', value: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)' },
+      { name: 'Dark', value: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)' }
+    ];
     
     this.init();
   }
@@ -75,6 +83,9 @@ class PureNotepad {
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255,255,255,0.2);
       transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      background: ${this.settings.backgroundColor || 'rgba(255, 255, 255, 0.95)'};
+      color: ${this.settings.textColor || '#000000'};
+      opacity: ${(this.settings.opacity || 95) / 100};
     `;
 
     // Title bar with macOS traffic lights
@@ -317,7 +328,8 @@ class PureNotepad {
     this.titleBar.addEventListener('mousedown', (e) => {
       if (e.target.classList.contains('traffic-light') || 
           e.target.classList.contains('control-btn') ||
-          e.target.closest('.control-btn')) return;
+          e.target.closest('.control-btn') ||
+          e.target.closest('.controls')) return;
       this.startDrag(e);
     });
 
@@ -333,8 +345,15 @@ class PureNotepad {
     });
 
     document.addEventListener('mouseup', () => {
-      this.isDragging = false;
-      this.isResizing = false;
+      if (this.isDragging) {
+        this.isDragging = false;
+        this.titleBar.style.cursor = 'move';
+        document.body.style.userSelect = '';
+      }
+      if (this.isResizing) {
+        this.isResizing = false;
+        this.container.style.cursor = '';
+      }
     });
 
     // Prevent text selection while dragging
@@ -439,11 +458,13 @@ class PureNotepad {
   }
 
   startDrag(e) {
+    e.preventDefault();
     this.isDragging = true;
     const rect = this.container.getBoundingClientRect();
     this.dragOffset.x = e.clientX - rect.left;
     this.dragOffset.y = e.clientY - rect.top;
-    this.container.style.cursor = 'grabbing';
+    this.titleBar.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
   }
 
   drag(e) {
@@ -494,6 +515,12 @@ class PureNotepad {
     this.editor.value = this.editor.value.substring(0, start) + newText + this.editor.value.substring(end);
     this.editor.setSelectionRange(start + before.length, start + before.length + selectedText.length);
     this.editor.focus();
+    
+    // Update current note content immediately
+    if (this.currentNote) {
+      this.currentNote.content = this.editor.value;
+    }
+    
     this.updateWordCount();
     this.autoSave();
   }
@@ -711,8 +738,8 @@ class PureNotepad {
         <h3>Settings</h3>
         <div class="setting-group">
           <label>Opacity</label>
-          <input type="range" id="opacity" min="0.5" max="1" step="0.05" value="${this.settings.opacity || 0.95}">
-          <span id="opacity-value">${Math.round((this.settings.opacity || 0.95) * 100)}%</span>
+          <input type="range" id="opacity" min="10" max="100" step="5" value="${this.settings.opacity || 95}">
+          <span id="opacity-value">${this.settings.opacity || 95}%</span>
         </div>
         <div class="setting-group">
           <label>Font Size</label>
@@ -726,6 +753,18 @@ class PureNotepad {
             <option value="light" ${this.settings.theme === 'light' ? 'selected' : ''}>Light</option>
             <option value="dark" ${this.settings.theme === 'dark' ? 'selected' : ''}>Dark</option>
           </select>
+        </div>
+        <div class="setting-group">
+          <label>Background Color</label>
+          <div class="color-options">
+            ${this.colorOptions.map((color, index) => `
+              <div class="color-option ${this.settings.colorTheme === index ? 'selected' : ''}" 
+                   data-color-index="${index}" 
+                   style="background: ${color.value};" 
+                   title="${color.name}">
+              </div>
+            `).join('')}
+          </div>
         </div>
         <div class="setting-group">
           <label>
@@ -746,8 +785,8 @@ class PureNotepad {
     const opacitySlider = modal.querySelector('#opacity');
     const opacityValue = modal.querySelector('#opacity-value');
     opacitySlider.addEventListener('input', (e) => {
-      opacityValue.textContent = Math.round(e.target.value * 100) + '%';
-      this.container.style.opacity = e.target.value;
+      opacityValue.textContent = e.target.value + '%';
+      this.container.style.opacity = e.target.value / 100;
     });
     
     // Update font size value display
@@ -758,12 +797,27 @@ class PureNotepad {
       this.editor.style.fontSize = e.target.value + 'px';
     });
     
+    // Color selection
+    const colorOptions = modal.querySelectorAll('.color-option');
+    colorOptions.forEach((option, index) => {
+      option.addEventListener('click', () => {
+        colorOptions.forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        this.applyColorTheme(index);
+      });
+    });
+    
     // Save settings
     modal.querySelector('#save-settings').addEventListener('click', () => {
-      this.settings.opacity = parseFloat(opacitySlider.value);
+      this.settings.opacity = parseInt(opacitySlider.value);
       this.settings.fontSize = parseInt(fontSizeSlider.value);
       this.settings.theme = modal.querySelector('#theme').value;
       this.settings.autoSave = modal.querySelector('#auto-save').checked;
+      
+      const selectedColor = modal.querySelector('.color-option.selected');
+      if (selectedColor) {
+        this.settings.colorTheme = parseInt(selectedColor.dataset.colorIndex);
+      }
       
       this.applyTheme();
       this.saveData();
@@ -772,28 +826,49 @@ class PureNotepad {
     
     // Cancel settings
     modal.querySelector('#cancel-settings').addEventListener('click', () => {
-      this.container.style.opacity = this.settings.opacity || 0.95;
+      this.container.style.opacity = (this.settings.opacity || 95) / 100;
       this.editor.style.fontSize = (this.settings.fontSize || 14) + 'px';
+      this.applyTheme();
       document.body.removeChild(modal);
     });
+  }
+
+  applyColorTheme(colorIndex) {
+    const color = this.colorOptions[colorIndex];
+    if (color) {
+      document.body.style.background = color.value;
+      this.settings.colorTheme = colorIndex;
+    }
   }
 
   applyTheme() {
     const isDark = this.settings.theme === 'dark' || 
                   (this.settings.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     
+    let backgroundColor, textColor;
+    
     if (isDark) {
-      this.container.style.backgroundColor = 'rgba(30, 30, 30, 0.95)';
-      this.container.style.color = '#ffffff';
+      backgroundColor = 'rgba(30, 30, 30, 0.95)';
+      textColor = '#ffffff';
       this.container.style.borderColor = 'rgba(255, 255, 255, 0.1)';
     } else {
-      this.container.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-      this.container.style.color = '#000000';
+      backgroundColor = 'rgba(255, 255, 255, 0.95)';
+      textColor = '#000000';
       this.container.style.borderColor = 'rgba(0, 0, 0, 0.1)';
     }
     
-    this.container.style.opacity = this.settings.opacity || 0.95;
+    this.container.style.backgroundColor = backgroundColor;
+    this.container.style.color = textColor;
+    this.container.style.opacity = (this.settings.opacity || 95) / 100;
     this.editor.style.fontSize = (this.settings.fontSize || 14) + 'px';
+    
+    // Apply color theme if set
+    if (this.settings.colorTheme !== undefined) {
+      this.applyColorTheme(this.settings.colorTheme);
+    }
+    
+    this.settings.backgroundColor = backgroundColor;
+    this.settings.textColor = textColor;
   }
 
   handleStorageChange(changes) {
