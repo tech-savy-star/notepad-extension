@@ -374,14 +374,23 @@ class PureNotepad {
 
     // Message listener for keyboard shortcut
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      sendResponse({received: true}); // Always send response to prevent errors
+      console.log('Received message:', request);
       
       if (request.action === 'toggleNotepad') {
+        console.log('Toggling notepad...');
         this.toggle();
+        sendResponse({success: true, action: 'toggleNotepad'});
       } else if (request.action === 'showPopup') {
+        console.log('Showing popup...');
         this.showExtensionPopup();
+        sendResponse({success: true, action: 'showPopup'});
       } else if (request.action === 'storageChanged') {
+        console.log('Handling storage change...');
         this.handleStorageChange(request.changes);
+        sendResponse({success: true, action: 'storageChanged'});
+      } else {
+        console.log('Unknown action:', request.action);
+        sendResponse({success: false, error: 'Unknown action'});
       }
       
       return true; // Keep message channel open
@@ -399,6 +408,7 @@ class PureNotepad {
   }
 
   show() {
+    console.log('Showing Pure Notepad...');
     this.container.style.display = 'block';
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.95)';
@@ -413,6 +423,7 @@ class PureNotepad {
   }
 
   hide() {
+    console.log('Hiding Pure Notepad...');
     this.container.style.opacity = '0';
     this.container.style.transform = 'scale(0.95)';
     
@@ -423,6 +434,7 @@ class PureNotepad {
   }
 
   toggle() {
+    console.log('Toggling Pure Notepad. Current state:', this.isVisible);
     if (this.isVisible) {
       this.hide();
     } else {
@@ -1058,3 +1070,52 @@ class PureNotepad {
 }
 
 // Initialize when DOM is ready
+console.log('Pure Notepad content script loaded');
+
+// Initialize immediately if DOM is already ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM ready, initializing Pure Notepad...');
+    new PureNotepad();
+  });
+} else {
+  console.log('DOM already ready, initializing Pure Notepad immediately...');
+  new PureNotepad();
+}
+
+// Also listen for messages immediately in case the extension is clicked before DOM is ready
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Early message received:', request);
+  
+  if (request.action === 'toggleNotepad') {
+    // If notepad isn't initialized yet, wait for it
+    if (!window.pureNotepadInstance) {
+      console.log('Notepad not ready, waiting...');
+      const checkReady = setInterval(() => {
+        if (window.pureNotepadInstance) {
+          console.log('Notepad ready, toggling...');
+          clearInterval(checkReady);
+          window.pureNotepadInstance.toggle();
+          sendResponse({success: true, delayed: true});
+        }
+      }, 100);
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkReady);
+        if (!window.pureNotepadInstance) {
+          console.error('Notepad failed to initialize within 5 seconds');
+          sendResponse({success: false, error: 'Initialization timeout'});
+        }
+      }, 5000);
+      
+      return true; // Keep message channel open
+    } else {
+      console.log('Notepad ready, toggling immediately...');
+      window.pureNotepadInstance.toggle();
+      sendResponse({success: true});
+    }
+  }
+  
+  return true;
+});
